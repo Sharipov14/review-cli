@@ -147,15 +147,7 @@ public class GeminiCliProvider : IReviewProvider
     {
         var process = new Process
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = _options.ExecutablePath,
-                Arguments = BuildArguments(prompt),
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
+            StartInfo = GetProcessStartInfo(prompt)
         };
 
         var output = new StringBuilder();
@@ -185,18 +177,51 @@ public class GeminiCliProvider : IReviewProvider
         return output.ToString();
     }
 
+    private ProcessStartInfo GetProcessStartInfo(string prompt)
+    {
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = this._options.ExecutablePath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        var args = BuildArguments(prompt);
+
+        processStartInfo.ArgumentList.Add("-p");
+        processStartInfo.ArgumentList.Add($"\"{prompt.Replace("\"", "\\\"")}\"");
+        processStartInfo.ArgumentList.Add("-y"); // YOLO mode - auto-approve
+
+        if (!string.IsNullOrWhiteSpace(_options.Model))
+        {
+            processStartInfo.ArgumentList.Add("-m");
+            processStartInfo.ArgumentList.Add(_options.Model);
+        }
+
+        if (_options.OutputFormat == "json")
+        {
+            processStartInfo.ArgumentList.Add("--output-format");
+            processStartInfo.ArgumentList.Add("json");
+        }
+        return processStartInfo;
+    }
+
     /// <summary>
     /// 
     /// </summary>
     /// <param name="prompt"></param>
     /// <returns></returns>
-    private string BuildArguments(string prompt)
+    private string[] BuildArguments(string prompt)
     {
         var args = new List<string>
-      {
-          "-p", $"\"{prompt.Replace("\"", "\\\"")}\"",
-          "-y" // YOLO mode - auto-approve
-      };
+        {
+            "-p", 
+            //"Hello",
+            $"\"{prompt.Replace("\"", "\\\"")}\"",
+            "-y" // YOLO mode - auto-approve
+        };
 
         // Добавляем модель только если она указана
         if (!string.IsNullOrWhiteSpace(_options.Model))
@@ -211,7 +236,7 @@ public class GeminiCliProvider : IReviewProvider
             args.Add("json");
         }
 
-        return string.Join(" ", args);
+        return args.ToArray();
     }
 
     /// <summary>
